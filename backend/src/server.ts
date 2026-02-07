@@ -2,7 +2,8 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
 import dotenv from 'dotenv';
-import pool from './config/database.js';
+import pool from './config/database';
+import userRoutes from './routes/userRoutes';
 
 dotenv.config();
 
@@ -13,6 +14,9 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+
+// API Routes
+app.use('/api/users', userRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req: Request, res: Response) => {
