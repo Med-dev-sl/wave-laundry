@@ -18,28 +18,39 @@ import {
 const API_BASE_URL = 'http://10.140.218.56:3000/api';
 
 interface FormErrors {
+  name?: string;
+  email?: string;
   phone?: string;
   password?: string;
+  confirmPassword?: string;
 }
 
-interface LoginData {
+interface SuccessData {
   id: number;
   name: string;
   email: string;
   phone: string;
 }
 
-export default function Login() {
+export default function Register() {
   const router = useRouter();
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [loginData, setLoginData] = useState<LoginData | null>(null);
+  const [successData, setSuccessData] = useState<SuccessData | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const nameUnderline = useRef(new Animated.Value(0)).current;
+  const emailUnderline = useRef(new Animated.Value(0)).current;
   const phoneUnderline = useRef(new Animated.Value(0)).current;
   const passwordUnderline = useRef(new Animated.Value(0)).current;
+  const confirmUnderline = useRef(new Animated.Value(0)).current;
 
   const animateUnderline = (anim: Animated.Value, toValue: number) => {
     Animated.timing(anim, {
@@ -52,7 +63,25 @@ export default function Login() {
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
 
-    // Phone validation
+    // Name validation
+    if (!name.trim()) {
+      newErrors.name = 'Full name is required';
+    } else if (name.trim().length < 2) {
+      newErrors.name = 'Name must be at least 2 characters';
+    } else if (name.trim().length > 255) {
+      newErrors.name = 'Name cannot exceed 255 characters';
+    }
+
+    // Email validation
+    if (!email.trim()) {
+      newErrors.email = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      newErrors.email = 'Please enter a valid email address';
+    } else if (email.trim().length > 255) {
+      newErrors.email = 'Email cannot exceed 255 characters';
+    }
+
+    // Phone validation (required)
     if (!phone.trim()) {
       newErrors.phone = 'Phone number is required';
     } else {
@@ -71,11 +100,18 @@ export default function Login() {
       newErrors.password = 'Password must be at least 6 characters';
     }
 
+    // Confirm password validation
+    if (!confirmPassword) {
+      newErrors.confirmPassword = 'Please confirm your password';
+    } else if (password !== confirmPassword) {
+      newErrors.confirmPassword = 'Passwords do not match';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleLogin = async () => {
+  const handleRegister = async () => {
     // Validate form
     if (!validateForm()) {
       return;
@@ -83,14 +119,17 @@ export default function Login() {
 
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/users/login`, {
+      const response = await fetch(`${API_BASE_URL}/users/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          name: name.trim(),
+          email: email.trim(),
           phone: phone.trim(),
           password: password,
+          confirmPassword: confirmPassword,
         }),
       });
 
@@ -100,16 +139,16 @@ export default function Login() {
         // Handle specific error messages
         if (response.status === 400) {
           Alert.alert('Validation Error', data.message || 'Please check your input');
-        } else if (response.status === 401) {
-          setErrors({ phone: data.message || 'Invalid phone number or password' });
+        } else if (response.status === 409) {
+          setErrors({ email: 'Email or phone number already registered' });
         } else {
-          Alert.alert('Login Failed', data.message || 'Something went wrong');
+          Alert.alert('Registration Failed', data.message || 'Something went wrong');
         }
         return;
       }
 
       // Show success modal
-      setLoginData({
+      setSuccessData({
         id: data.data.id,
         name: data.data.name,
         email: data.data.email,
@@ -131,16 +170,22 @@ export default function Login() {
   const handleSuccessClose = () => {
     setShowSuccessModal(false);
     // Clear form
+    setName('');
+    setEmail('');
     setPhone('');
     setPassword('');
+    setConfirmPassword('');
     setErrors({});
-    setLoginData(null);
+    setSuccessData(null);
   };
 
-  const handleInputChange = (field: 'phone' | 'password', value: string) => {
+  const handleInputChange = (field: 'name' | 'email' | 'phone' | 'password' | 'confirmPassword', value: string) => {
     // Update state
+    if (field === 'name') setName(value);
+    if (field === 'email') setEmail(value);
     if (field === 'phone') setPhone(value);
     if (field === 'password') setPassword(value);
+    if (field === 'confirmPassword') setConfirmPassword(value);
 
     // Clear error for this field when user starts typing
     if (errors[field]) {
@@ -160,11 +205,67 @@ export default function Login() {
           <View style={styles.header}>
             <Text style={styles.logo}>🌊</Text>
             <Text style={styles.title}>Wave Laundry</Text>
-            <Text style={styles.subtitle}>Sign In to Your Account</Text>
+            <Text style={styles.subtitle}>Create Your Account</Text>
           </View>
 
-          {/* Form Container (transparent for underline inputs) */}
+          {/* Form Container */}
           <View style={styles.formContainer}>
+            {/* Name Input */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>
+                Full Name <Text style={styles.required}>*</Text>
+              </Text>
+              <View style={styles.inputRow}>
+                <TextInput
+                  style={styles.inputUnderline}
+                  placeholder="John Doe"
+                  placeholderTextColor="#999"
+                  value={name}
+                  onChangeText={(value) => handleInputChange('name', value)}
+                  editable={!loading}
+                  maxLength={255}
+                  onFocus={() => animateUnderline(nameUnderline, 1)}
+                  onBlur={() => animateUnderline(nameUnderline, 0)}
+                />
+              </View>
+              <Animated.View
+                style={[
+                  styles.underline,
+                  { transform: [{ scaleX: nameUnderline }] },
+                ]}
+              />
+              {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
+            </View>
+
+            {/* Email Input */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>
+                Email Address <Text style={styles.required}>*</Text>
+              </Text>
+              <View style={styles.inputRow}>
+                <TextInput
+                  style={styles.inputUnderline}
+                  placeholder="john@example.com"
+                  placeholderTextColor="#999"
+                  value={email}
+                  onChangeText={(value) => handleInputChange('email', value)}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  editable={!loading}
+                  maxLength={255}
+                  onFocus={() => animateUnderline(emailUnderline, 1)}
+                  onBlur={() => animateUnderline(emailUnderline, 0)}
+                />
+              </View>
+              <Animated.View
+                style={[
+                  styles.underline,
+                  { transform: [{ scaleX: emailUnderline }] },
+                ]}
+              />
+              {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+            </View>
+
             {/* Phone Input */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>
@@ -190,9 +291,7 @@ export default function Login() {
               <Animated.View
                 style={[
                   styles.underline,
-                  {
-                    transform: [{ scaleX: phoneUnderline }],
-                  },
+                  { transform: [{ scaleX: phoneUnderline }] },
                 ]}
               />
               {errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
@@ -226,38 +325,65 @@ export default function Login() {
               <Animated.View
                 style={[
                   styles.underline,
-                  {
-                    transform: [{ scaleX: passwordUnderline }],
-                  },
+                  { transform: [{ scaleX: passwordUnderline }] },
                 ]}
               />
               {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
+              <Text style={styles.helperText}>At least 6 characters</Text>
             </View>
 
-            {/* Forgot Password Link */}
-            <TouchableOpacity onPress={() => router.push('/forgot-password')} style={styles.forgotContainer}>
-              <Text style={styles.forgotText}>Forgot Password?</Text>
-            </TouchableOpacity>
+            {/* Confirm Password Input */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>
+                Confirm Password <Text style={styles.required}>*</Text>
+              </Text>
+              <View style={styles.inputRow}>
+                <TextInput
+                  style={styles.inputUnderline}
+                  placeholder="Confirm your password"
+                  placeholderTextColor="#999"
+                  value={confirmPassword}
+                  onChangeText={(value) => handleInputChange('confirmPassword', value)}
+                  secureTextEntry={!showConfirmPassword}
+                  editable={!loading}
+                  onFocus={() => animateUnderline(confirmUnderline, 1)}
+                  onBlur={() => animateUnderline(confirmUnderline, 0)}
+                />
+                <TouchableOpacity
+                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                  style={styles.eyeIcon}
+                >
+                  <Text style={styles.eyeIconText}>{showConfirmPassword ? '👁️' : '👁️‍🗨️'}</Text>
+                </TouchableOpacity>
+              </View>
+              <Animated.View
+                style={[
+                  styles.underline,
+                  { transform: [{ scaleX: confirmUnderline }] },
+                ]}
+              />
+              {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
+            </View>
 
-            {/* Login Button */}
+            {/* Register Button */}
             <TouchableOpacity
               style={[styles.button, loading && styles.buttonDisabled]}
-              onPress={handleLogin}
+              onPress={handleRegister}
               disabled={loading}
               activeOpacity={0.8}
             >
               {loading ? (
                 <ActivityIndicator color="#fff" size="small" />
               ) : (
-                <Text style={styles.buttonText}>Sign In</Text>
+                <Text style={styles.buttonText}>Create Account</Text>
               )}
             </TouchableOpacity>
 
-            {/* Register Link */}
+            {/* Login Link */}
             <View style={styles.linkContainer}>
-              <Text style={styles.infoText}>Don't have an account? </Text>
-              <TouchableOpacity onPress={() => router.push('/register')}>
-                <Text style={styles.linkText}>Register</Text>
+              <Text style={styles.infoText}>Already have an account? </Text>
+              <TouchableOpacity onPress={() => router.push('/')}>
+                <Text style={styles.linkText}>Sign In</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -282,29 +408,29 @@ export default function Login() {
             </View>
 
             {/* Success Message */}
-            <Text style={styles.successTitle}>Login Successful!</Text>
+            <Text style={styles.successTitle}>Registration Successful!</Text>
             <Text style={styles.successMessage}>
-              Welcome back to Wave Laundry
+              Your account has been created successfully.
             </Text>
 
             {/* User Details */}
-            {loginData && (
+            {successData && (
               <View style={styles.userDetailsContainer}>
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Name:</Text>
-                  <Text style={styles.detailValue}>{loginData.name}</Text>
+                  <Text style={styles.detailValue}>{successData.name}</Text>
                 </View>
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Email:</Text>
-                  <Text style={styles.detailValue}>{loginData.email}</Text>
+                  <Text style={styles.detailValue}>{successData.email}</Text>
                 </View>
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Phone:</Text>
-                  <Text style={styles.detailValue}>+232 {loginData.phone}</Text>
+                  <Text style={styles.detailValue}>+232 {successData.phone}</Text>
                 </View>
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>User ID:</Text>
-                  <Text style={styles.detailValue}>#{loginData.id}</Text>
+                  <Text style={styles.detailValue}>#{successData.id}</Text>
                 </View>
               </View>
             )}
@@ -336,7 +462,7 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginTop: 50,
+    marginTop: 30,
     marginBottom: 40,
   },
   logo: {
@@ -379,19 +505,17 @@ const styles = StyleSheet.create({
     color: '#FF6B6B',
   },
   inputWrapper: {
-    // kept for compatibility but not used for underline inputs
-    borderWidth: 0,
-    borderColor: 'transparent',
-    borderRadius: 0,
-    backgroundColor: 'transparent',
-    overflow: 'visible',
-    flexDirection: 'row',
-    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#e0e0e0',
+    borderRadius: 10,
+    backgroundColor: '#fafafa',
+    overflow: 'hidden',
   },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: 12,
+    height: 48,
   },
   inputInline: {
     flex: 1,
@@ -402,9 +526,10 @@ const styles = StyleSheet.create({
   },
   inputUnderline: {
     flex: 1,
-    paddingVertical: 8,
+    paddingVertical: 12,
     fontSize: 16,
     color: '#1a1a1a',
+    fontFamily: 'System',
   },
   underline: {
     height: 2,
@@ -426,7 +551,6 @@ const styles = StyleSheet.create({
   phoneInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
     paddingHorizontal: 12,
   },
   phonePrefix: {
@@ -498,16 +622,6 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   linkText: {
-    fontSize: 12,
-    color: '#007AFF',
-    fontWeight: '600',
-    fontFamily: 'Trebuchet MS',
-  },
-  forgotContainer: {
-    alignSelf: 'flex-end',
-    marginBottom: 16,
-  },
-  forgotText: {
     fontSize: 12,
     color: '#007AFF',
     fontWeight: '600',

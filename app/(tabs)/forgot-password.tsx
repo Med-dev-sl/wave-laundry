@@ -1,21 +1,21 @@
-import { useState, useRef } from 'react';
 import { useRouter } from 'expo-router';
+import { useRef, useState } from 'react';
 import {
-  Text,
-  View,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  Alert,
-  ActivityIndicator,
-  Modal,
-  Pressable,
-  StatusBar,
-  Animated,
+    ActivityIndicator,
+    Alert,
+    Animated,
+    Modal,
+    Pressable,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { StyleSheet } from 'react-native';
 
-const API_BASE_URL = 'http://localhost:3000/api';
+const API_BASE_URL = 'http://10.140.218.56:3000/api';
 
 interface FormErrors {
   email?: string;
@@ -183,7 +183,7 @@ export default function ForgotPassword() {
             {/* Back to Login Link */}
             <View style={styles.linkContainer}>
               <Text style={styles.infoText}>Remember your password? </Text>
-              <TouchableOpacity onPress={() => router.push('/explore')}>
+              <TouchableOpacity onPress={() => router.push('/')}>
                 <Text style={styles.linkText}>Sign In</Text>
               </TouchableOpacity>
             </View>

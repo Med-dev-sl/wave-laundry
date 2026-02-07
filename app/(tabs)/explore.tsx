@@ -1,19 +1,19 @@
-import { useState, useRef } from 'react';
 import { useRouter } from 'expo-router';
+import { useRef, useState } from 'react';
 import {
-  Text,
-  View,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  Alert,
   ActivityIndicator,
+  Alert,
+  Animated,
   Modal,
   Pressable,
+  ScrollView,
   StatusBar,
-  Animated,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { StyleSheet } from 'react-native';
 
 const API_BASE_URL = 'http://localhost:3000/api';
 
@@ -256,7 +256,7 @@ export default function Login() {
             {/* Register Link */}
             <View style={styles.linkContainer}>
               <Text style={styles.infoText}>Don't have an account? </Text>
-              <TouchableOpacity onPress={() => router.navigate('/(tabs)')}>
+              <TouchableOpacity onPress={() => router.push('/register')}>
                 <Text style={styles.linkText}>Register</Text>
               </TouchableOpacity>
             </View>

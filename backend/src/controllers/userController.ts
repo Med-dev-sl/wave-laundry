@@ -1,5 +1,5 @@
-import { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
+import { Request, Response } from 'express';
 import pool from '../config/database';
 
 export const register = async (req: Request, res: Response) => {
