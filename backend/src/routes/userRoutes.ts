@@ -8,7 +8,7 @@ import {
     register,
     resetPassword,
     updateUser,
-} from '../controllers/userController';
+} from '../controllers/userController.js';
 
 const router = Router();
 

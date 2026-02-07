@@ -135,6 +135,8 @@ export default function Login() {
     setPassword('');
     setErrors({});
     setLoginData(null);
+    // Navigate to home screen
+    router.push('/home');
   };
 
   const handleInputChange = (field: 'phone' | 'password', value: string) => {

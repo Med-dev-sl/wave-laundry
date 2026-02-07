@@ -2,8 +2,8 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
 import dotenv from 'dotenv';
-import pool from './config/database';
-import userRoutes from './routes/userRoutes';
+import pool from './config/database.js';
+import userRoutes from './routes/userRoutes.js';
 
 dotenv.config();
 

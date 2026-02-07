@@ -1,18 +1,18 @@
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Animated,
-  Modal,
-  Pressable,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Animated,
+    Modal,
+    Pressable,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
 const API_BASE_URL = 'http://10.140.218.56:3000/api';
@@ -177,6 +177,8 @@ export default function Register() {
     setConfirmPassword('');
     setErrors({});
     setSuccessData(null);
+    // Navigate to home screen
+    router.push('/home');
   };
 
   const handleInputChange = (field: 'name' | 'email' | 'phone' | 'password' | 'confirmPassword', value: string) => {

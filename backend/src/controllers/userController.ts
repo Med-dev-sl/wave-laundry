@@ -1,6 +1,6 @@
 import bcrypt from 'bcrypt';
 import { Request, Response } from 'express';
-import pool from '../config/database';
+import pool from '../config/database.js';
 
 export const register = async (req: Request, res: Response) => {
   try {
