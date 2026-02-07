@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import { useRouter } from 'expo-router';
 import {
   Text,
   View,
@@ -10,6 +11,7 @@ import {
   Modal,
   Pressable,
   StatusBar,
+  Animated,
 } from 'react-native';
 import { StyleSheet } from 'react-native';
 
@@ -31,6 +33,7 @@ interface SuccessData {
 }
 
 export default function Register() {
+  const router = useRouter();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -42,6 +45,20 @@ export default function Register() {
   const [successData, setSuccessData] = useState<SuccessData | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const nameUnderline = useRef(new Animated.Value(0)).current;
+  const emailUnderline = useRef(new Animated.Value(0)).current;
+  const phoneUnderline = useRef(new Animated.Value(0)).current;
+  const passwordUnderline = useRef(new Animated.Value(0)).current;
+  const confirmUnderline = useRef(new Animated.Value(0)).current;
+
+  const animateUnderline = (anim: Animated.Value, toValue: number) => {
+    Animated.timing(anim, {
+      toValue,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+  };
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -198,17 +215,25 @@ export default function Register() {
               <Text style={styles.label}>
                 Full Name <Text style={styles.required}>*</Text>
               </Text>
-              <View style={[styles.inputWrapper, errors.name && styles.inputError]}>
+              <View style={styles.inputRow}>
                 <TextInput
-                  style={styles.input}
+                  style={styles.inputUnderline}
                   placeholder="John Doe"
                   placeholderTextColor="#999"
                   value={name}
                   onChangeText={(value) => handleInputChange('name', value)}
                   editable={!loading}
                   maxLength={255}
+                  onFocus={() => animateUnderline(nameUnderline, 1)}
+                  onBlur={() => animateUnderline(nameUnderline, 0)}
                 />
               </View>
+              <Animated.View
+                style={[
+                  styles.underline,
+                  { transform: [{ scaleX: nameUnderline }] },
+                ]}
+              />
               {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
             </View>
 
@@ -217,9 +242,9 @@ export default function Register() {
               <Text style={styles.label}>
                 Email Address <Text style={styles.required}>*</Text>
               </Text>
-              <View style={[styles.inputWrapper, errors.email && styles.inputError]}>
+              <View style={styles.inputRow}>
                 <TextInput
-                  style={styles.input}
+                  style={styles.inputUnderline}
                   placeholder="john@example.com"
                   placeholderTextColor="#999"
                   value={email}
@@ -228,8 +253,16 @@ export default function Register() {
                   autoCapitalize="none"
                   editable={!loading}
                   maxLength={255}
+                  onFocus={() => animateUnderline(emailUnderline, 1)}
+                  onBlur={() => animateUnderline(emailUnderline, 0)}
                 />
               </View>
+              <Animated.View
+                style={[
+                  styles.underline,
+                  { transform: [{ scaleX: emailUnderline }] },
+                ]}
+              />
               {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
             </View>
 
@@ -238,11 +271,11 @@ export default function Register() {
               <Text style={styles.label}>
                 Phone Number <Text style={styles.required}>*</Text>
               </Text>
-              <View style={[styles.inputWrapper, errors.phone && styles.inputError]}>
+              <View style={styles.inputRow}>
                 <View style={styles.phoneInputContainer}>
                   <Text style={styles.phonePrefix}>🇸🇱 +232</Text>
                   <TextInput
-                    style={styles.phoneInput}
+                    style={styles.inputUnderline}
                     placeholder="xx xxx xxxx"
                     placeholderTextColor="#999"
                     value={phone}
@@ -250,9 +283,17 @@ export default function Register() {
                     keyboardType="phone-pad"
                     editable={!loading}
                     maxLength={20}
+                    onFocus={() => animateUnderline(phoneUnderline, 1)}
+                    onBlur={() => animateUnderline(phoneUnderline, 0)}
                   />
                 </View>
               </View>
+              <Animated.View
+                style={[
+                  styles.underline,
+                  { transform: [{ scaleX: phoneUnderline }] },
+                ]}
+              />
               {errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
               <Text style={styles.helperText}>8 digits only</Text>
             </View>
@@ -262,15 +303,17 @@ export default function Register() {
               <Text style={styles.label}>
                 Password <Text style={styles.required}>*</Text>
               </Text>
-              <View style={[styles.inputWrapper, errors.password && styles.inputError]}>
+              <View style={styles.inputRow}>
                 <TextInput
-                  style={styles.input}
+                  style={styles.inputUnderline}
                   placeholder="Enter your password"
                   placeholderTextColor="#999"
                   value={password}
                   onChangeText={(value) => handleInputChange('password', value)}
                   secureTextEntry={!showPassword}
                   editable={!loading}
+                  onFocus={() => animateUnderline(passwordUnderline, 1)}
+                  onBlur={() => animateUnderline(passwordUnderline, 0)}
                 />
                 <TouchableOpacity
                   onPress={() => setShowPassword(!showPassword)}
@@ -279,6 +322,12 @@ export default function Register() {
                   <Text style={styles.eyeIconText}>{showPassword ? '👁️' : '👁️‍🗨️'}</Text>
                 </TouchableOpacity>
               </View>
+              <Animated.View
+                style={[
+                  styles.underline,
+                  { transform: [{ scaleX: passwordUnderline }] },
+                ]}
+              />
               {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
               <Text style={styles.helperText}>At least 6 characters</Text>
             </View>
@@ -288,15 +337,17 @@ export default function Register() {
               <Text style={styles.label}>
                 Confirm Password <Text style={styles.required}>*</Text>
               </Text>
-              <View style={[styles.inputWrapper, errors.confirmPassword && styles.inputError]}>
+              <View style={styles.inputRow}>
                 <TextInput
-                  style={styles.input}
+                  style={styles.inputUnderline}
                   placeholder="Confirm your password"
                   placeholderTextColor="#999"
                   value={confirmPassword}
                   onChangeText={(value) => handleInputChange('confirmPassword', value)}
                   secureTextEntry={!showConfirmPassword}
                   editable={!loading}
+                  onFocus={() => animateUnderline(confirmUnderline, 1)}
+                  onBlur={() => animateUnderline(confirmUnderline, 0)}
                 />
                 <TouchableOpacity
                   onPress={() => setShowConfirmPassword(!showConfirmPassword)}
@@ -305,6 +356,12 @@ export default function Register() {
                   <Text style={styles.eyeIconText}>{showConfirmPassword ? '👁️' : '👁️‍🗨️'}</Text>
                 </TouchableOpacity>
               </View>
+              <Animated.View
+                style={[
+                  styles.underline,
+                  { transform: [{ scaleX: confirmUnderline }] },
+                ]}
+              />
               {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
             </View>
 
@@ -322,10 +379,13 @@ export default function Register() {
               )}
             </TouchableOpacity>
 
-            {/* Info Text */}
-            <Text style={styles.infoText}>
-              By registering, you agree to our Terms of Service
-            </Text>
+            {/* Login Link */}
+            <View style={styles.linkContainer}>
+              <Text style={styles.infoText}>Already have an account? </Text>
+              <TouchableOpacity onPress={() => router.push('/explore')}>
+                <Text style={styles.linkText}>Sign In</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 
@@ -414,21 +474,23 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1a1a1a',
     marginBottom: 8,
+    fontFamily: 'Trebuchet MS',
   },
   subtitle: {
     fontSize: 16,
     color: '#666',
     fontWeight: '500',
+    fontFamily: 'Trebuchet MS',
   },
   formContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 3,
+    backgroundColor: 'transparent',
+    borderRadius: 0,
+    padding: 8,
+    shadowColor: 'transparent',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
   },
   inputGroup: {
     marginBottom: 24,
@@ -448,6 +510,33 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: '#fafafa',
     overflow: 'hidden',
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    height: 48,
+  },
+  inputInline: {
+    flex: 1,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: '#1a1a1a',
+    fontFamily: 'System',
+  },
+  inputUnderline: {
+    flex: 1,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: '#1a1a1a',
+    fontFamily: 'System',
+  },
+  underline: {
+    height: 2,
+    backgroundColor: '#87CEEB',
+    transform: [{ scaleX: 0 }],
+    marginTop: 4,
+    alignSelf: 'stretch',
   },
   inputError: {
     borderColor: '#FF6B6B',
@@ -518,12 +607,25 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
+    fontFamily: 'Trebuchet MS',
   },
   infoText: {
     fontSize: 12,
     color: '#999',
     textAlign: 'center',
     fontWeight: '400',
+  },
+  linkContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  linkText: {
+    fontSize: 12,
+    color: '#007AFF',
+    fontWeight: '600',
+    fontFamily: 'Trebuchet MS',
   },
 
   // Modal Styles

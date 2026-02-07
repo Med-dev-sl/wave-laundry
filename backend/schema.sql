@@ -9,10 +9,13 @@ CREATE TABLE IF NOT EXISTS users (
   email VARCHAR(255) NOT NULL UNIQUE,
   phone VARCHAR(20) NOT NULL UNIQUE,
   password VARCHAR(255) NOT NULL,
+  reset_token VARCHAR(255),
+  reset_token_expires_at DATETIME,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_email (email),
-  INDEX idx_phone (phone)
+  INDEX idx_phone (phone),
+  INDEX idx_reset_token (reset_token)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Orders table

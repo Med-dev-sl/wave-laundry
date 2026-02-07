@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import { useRouter } from 'expo-router';
 import {
   Text,
   View,
@@ -10,6 +11,7 @@ import {
   Modal,
   Pressable,
   StatusBar,
+  Animated,
 } from 'react-native';
 import { StyleSheet } from 'react-native';
 
@@ -28,6 +30,7 @@ interface LoginData {
 }
 
 export default function Login() {
+  const router = useRouter();
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -35,6 +38,16 @@ export default function Login() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [loginData, setLoginData] = useState<LoginData | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const phoneUnderline = useRef(new Animated.Value(0)).current;
+  const passwordUnderline = useRef(new Animated.Value(0)).current;
+
+  const animateUnderline = (anim: Animated.Value, toValue: number) => {
+    Animated.timing(anim, {
+      toValue,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+  };
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -150,18 +163,18 @@ export default function Login() {
             <Text style={styles.subtitle}>Sign In to Your Account</Text>
           </View>
 
-          {/* Form Container */}
+          {/* Form Container (transparent for underline inputs) */}
           <View style={styles.formContainer}>
             {/* Phone Input */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>
                 Phone Number <Text style={styles.required}>*</Text>
               </Text>
-              <View style={[styles.inputWrapper, errors.phone && styles.inputError]}>
+              <View style={styles.inputRow}>
                 <View style={styles.phoneInputContainer}>
                   <Text style={styles.phonePrefix}>🇸🇱 +232</Text>
                   <TextInput
-                    style={styles.phoneInput}
+                    style={styles.inputUnderline}
                     placeholder="xx xxx xxxx"
                     placeholderTextColor="#999"
                     value={phone}
@@ -169,9 +182,19 @@ export default function Login() {
                     keyboardType="phone-pad"
                     editable={!loading}
                     maxLength={20}
+                    onFocus={() => animateUnderline(phoneUnderline, 1)}
+                    onBlur={() => animateUnderline(phoneUnderline, 0)}
                   />
                 </View>
               </View>
+              <Animated.View
+                style={[
+                  styles.underline,
+                  {
+                    transform: [{ scaleX: phoneUnderline }],
+                  },
+                ]}
+              />
               {errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
               <Text style={styles.helperText}>8 digits only</Text>
             </View>
@@ -181,15 +204,17 @@ export default function Login() {
               <Text style={styles.label}>
                 Password <Text style={styles.required}>*</Text>
               </Text>
-              <View style={[styles.inputWrapper, errors.password && styles.inputError]}>
+              <View style={styles.inputRow}>
                 <TextInput
-                  style={styles.input}
+                  style={styles.inputUnderline}
                   placeholder="Enter your password"
                   placeholderTextColor="#999"
                   value={password}
                   onChangeText={(value) => handleInputChange('password', value)}
                   secureTextEntry={!showPassword}
                   editable={!loading}
+                  onFocus={() => animateUnderline(passwordUnderline, 1)}
+                  onBlur={() => animateUnderline(passwordUnderline, 0)}
                 />
                 <TouchableOpacity
                   onPress={() => setShowPassword(!showPassword)}
@@ -198,8 +223,21 @@ export default function Login() {
                   <Text style={styles.eyeIconText}>{showPassword ? '👁️' : '👁️‍🗨️'}</Text>
                 </TouchableOpacity>
               </View>
+              <Animated.View
+                style={[
+                  styles.underline,
+                  {
+                    transform: [{ scaleX: passwordUnderline }],
+                  },
+                ]}
+              />
               {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
             </View>
+
+            {/* Forgot Password Link */}
+            <TouchableOpacity onPress={() => router.push('/forgot-password')} style={styles.forgotContainer}>
+              <Text style={styles.forgotText}>Forgot Password?</Text>
+            </TouchableOpacity>
 
             {/* Login Button */}
             <TouchableOpacity
@@ -215,10 +253,13 @@ export default function Login() {
               )}
             </TouchableOpacity>
 
-            {/* Info Text */}
-            <Text style={styles.infoText}>
-              Don't have an account? Register from the first tab
-            </Text>
+            {/* Register Link */}
+            <View style={styles.linkContainer}>
+              <Text style={styles.infoText}>Don't have an account? </Text>
+              <TouchableOpacity onPress={() => router.navigate('/(tabs)')}>
+                <Text style={styles.linkText}>Register</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 
@@ -307,21 +348,23 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1a1a1a',
     marginBottom: 8,
+    fontFamily: 'Trebuchet MS',
   },
   subtitle: {
     fontSize: 16,
     color: '#666',
     fontWeight: '500',
+    fontFamily: 'Trebuchet MS',
   },
   formContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 3,
+    backgroundColor: 'transparent',
+    borderRadius: 0,
+    padding: 8,
+    shadowColor: 'transparent',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
   },
   inputGroup: {
     marginBottom: 24,
@@ -336,11 +379,12 @@ const styles = StyleSheet.create({
     color: '#FF6B6B',
   },
   inputWrapper: {
-    borderWidth: 1.5,
-    borderColor: '#e0e0e0',
-    borderRadius: 10,
-    backgroundColor: '#fafafa',
-    overflow: 'hidden',
+    // kept for compatibility but not used for underline inputs
+    borderWidth: 0,
+    borderColor: 'transparent',
+    borderRadius: 0,
+    backgroundColor: 'transparent',
+    overflow: 'visible',
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -369,10 +413,28 @@ const styles = StyleSheet.create({
   },
   phoneInput: {
     flex: 1,
-    padding: 12,
+    paddingVertical: 8,
     fontSize: 16,
     color: '#1a1a1a',
     fontFamily: 'System',
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  inputUnderline: {
+    flex: 1,
+    paddingVertical: 8,
+    fontSize: 16,
+    color: '#1a1a1a',
+  },
+  underline: {
+    height: 2,
+    backgroundColor: '#87CEEB',
+    transform: [{ scaleX: 0 }],
+    marginTop: 4,
+    alignSelf: 'stretch',
   },
   eyeIcon: {
     padding: 10,
@@ -415,12 +477,35 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
+    fontFamily: 'Trebuchet MS',
   },
   infoText: {
     fontSize: 12,
     color: '#999',
     textAlign: 'center',
     fontWeight: '400',
+  },
+  forgotContainer: {
+    alignSelf: 'flex-end',
+    marginBottom: 16,
+  },
+  forgotText: {
+    fontSize: 12,
+    color: '#007AFF',
+    fontWeight: '600',
+    fontFamily: 'Trebuchet MS',
+  },
+  linkContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  linkText: {
+    fontSize: 12,
+    color: '#007AFF',
+    fontWeight: '600',
+    fontFamily: 'Trebuchet MS',
   },
 
   // Modal Styles
