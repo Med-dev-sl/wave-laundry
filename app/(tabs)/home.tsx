@@ -1,27 +1,42 @@
+import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import {
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  SafeAreaView,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
+import { HistoryTab } from './components/HistoryTab';
 import { HomeTab } from './components/HomeTab';
 import { OrdersTab } from './components/OrdersTab';
-import { HistoryTab } from './components/HistoryTab';
 import { SettingsTab } from './components/SettingsTab';
 
 type TabName = 'home' | 'orders' | 'history' | 'settings';
 
+interface UserData {
+  userId?: string;
+  userName?: string;
+  userEmail?: string;
+  userPhone?: string;
+}
+
 export default function Home() {
+  const params = useLocalSearchParams();
+  const userData: UserData = {
+    userId: typeof params.userId === 'string' ? params.userId : undefined,
+    userName: typeof params.userName === 'string' ? params.userName : undefined,
+    userEmail: typeof params.userEmail === 'string' ? params.userEmail : undefined,
+    userPhone: typeof params.userPhone === 'string' ? params.userPhone : undefined,
+  };
   const [activeTab, setActiveTab] = useState<TabName>('home');
 
   const renderTabContent = () => {
     switch (activeTab) {
       case 'home':
-        return <HomeTab />;
+        return <HomeTab userData={userData} />;
       case 'orders':
         return <OrdersTab />;
       case 'history':
@@ -29,7 +44,7 @@ export default function Home() {
       case 'settings':
         return <SettingsTab />;
       default:
-        return <HomeTab />;
+        return <HomeTab userData={userData} />;
     }
   };
 

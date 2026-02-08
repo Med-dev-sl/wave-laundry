@@ -1,6 +1,26 @@
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export function SettingsTab() {
+  const router = useRouter();
+
+  const handleLogout = () => {
+    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+      {
+        text: 'Cancel',
+        onPress: () => {},
+        style: 'cancel',
+      },
+      {
+        text: 'Sign Out',
+        onPress: () => {
+          router.push('/');
+        },
+        style: 'destructive',
+      },
+    ]);
+  };
+
   return (
     <View style={styles.tabContent}>
       <View style={styles.header}>
@@ -61,6 +81,14 @@ export function SettingsTab() {
           <Text style={styles.arrow}>›</Text>
         </TouchableOpacity>
       </View>
+
+      <TouchableOpacity 
+        style={[styles.settingItem, styles.logoutButton]}
+        onPress={handleLogout}
+      >
+        <Text style={styles.settingIcon}>🚪</Text>
+        <Text style={[styles.settingLabel, styles.logoutText]}>Sign Out</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -120,5 +148,14 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#007AFF',
     fontWeight: '600',
+  },
+  logoutButton: {
+    marginTop: 20,
+    backgroundColor: '#FFE8E8',
+    borderBottomWidth: 0,
+  },
+  logoutText: {
+    color: '#FF6B6B',
+    fontWeight: '700',
   },
 });

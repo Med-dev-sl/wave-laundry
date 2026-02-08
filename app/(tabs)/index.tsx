@@ -130,13 +130,21 @@ export default function Login() {
 
   const handleSuccessClose = () => {
     setShowSuccessModal(false);
+    // Navigate to home screen with user data
+    router.push({
+      pathname: '/home',
+      params: {
+        userId: loginData?.id,
+        userName: loginData?.name,
+        userEmail: loginData?.email,
+        userPhone: loginData?.phone,
+      },
+    });
     // Clear form
     setPhone('');
     setPassword('');
     setErrors({});
     setLoginData(null);
-    // Navigate to home screen
-    router.push('/home');
   };
 
   const handleInputChange = (field: 'phone' | 'password', value: string) => {

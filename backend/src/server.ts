@@ -1,7 +1,7 @@
-import express, { Request, Response, NextFunction } from 'express';
-import cors from 'cors';
 import bodyParser from 'body-parser';
+import cors from 'cors';
 import dotenv from 'dotenv';
+import express, { NextFunction, Request, Response } from 'express';
 import pool from './config/database.js';
 import userRoutes from './routes/userRoutes.js';
 

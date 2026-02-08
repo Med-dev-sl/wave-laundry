@@ -169,6 +169,16 @@ export default function Register() {
 
   const handleSuccessClose = () => {
     setShowSuccessModal(false);
+    // Navigate to home screen with user data
+    router.push({
+      pathname: '/home',
+      params: {
+        userId: successData?.id,
+        userName: successData?.name,
+        userEmail: successData?.email,
+        userPhone: successData?.phone,
+      },
+    });
     // Clear form
     setName('');
     setEmail('');
@@ -177,8 +187,6 @@ export default function Register() {
     setConfirmPassword('');
     setErrors({});
     setSuccessData(null);
-    // Navigate to home screen
-    router.push('/home');
   };
 
   const handleInputChange = (field: 'name' | 'email' | 'phone' | 'password' | 'confirmPassword', value: string) => {
