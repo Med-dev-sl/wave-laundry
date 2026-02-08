@@ -38,7 +38,7 @@ export default function Home() {
       case 'home':
         return <HomeTab userData={userData} />;
       case 'orders':
-        return <OrdersTab />;
+        return <OrdersTab userData={userData} />;
       case 'history':
         return <HistoryTab />;
       case 'settings':

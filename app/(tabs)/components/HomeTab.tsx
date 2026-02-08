@@ -20,46 +20,6 @@ interface HomeTabProps {
 export function HomeTab({ userData }: HomeTabProps) {
   const userName = userData?.userName || 'Guest';
 
-  // Animated slide-in for the services header
-  const slideAnim = useRef(new Animated.Value(-300)).current;
-
-  // Card animations
-  const cardAnims = useRef(
-    packages.map(() => ({
-      scale: new Animated.Value(0),
-      opacity: new Animated.Value(0),
-    }))
-  ).current;
-
-  useEffect(() => {
-    Animated.spring(slideAnim, {
-      toValue: 0,
-      useNativeDriver: true,
-      speed: 12,
-      bounciness: 6,
-    }).start();
-
-    // Staggered animation for cards
-    cardAnims.forEach((anim, index) => {
-      Animated.sequence([
-        Animated.delay(index * 100),
-        Animated.parallel([
-          Animated.spring(anim.scale, {
-            toValue: 1,
-            useNativeDriver: true,
-            speed: 12,
-            bounciness: 8,
-          }),
-          Animated.timing(anim.opacity, {
-            toValue: 1,
-            duration: 300,
-            useNativeDriver: true,
-          }),
-        ]),
-      ]).start();
-    });
-  }, [slideAnim, cardAnims]);
-
   const services = [
     { key: 'wash', label: 'Wash', icon: '🧺' },
     { key: 'dry', label: 'Dry', icon: '💨' },
@@ -125,7 +85,54 @@ export function HomeTab({ userData }: HomeTabProps) {
       price: 'SLe 10.00',
       icon: '⚪',
     },
+    {
+      key: 'emergency',
+      title: 'Emergency Service',
+      weight: 'Any Package',
+      price: '2x Package Price',
+      icon: '🚨',
+    },
   ];
+
+  // Animated slide-in for the services header
+  const slideAnim = useRef(new Animated.Value(-300)).current;
+
+  // Card animations
+  const cardAnims = useRef(
+    packages.map(() => ({
+      scale: new Animated.Value(0),
+      opacity: new Animated.Value(0),
+    }))
+  ).current;
+
+  useEffect(() => {
+    Animated.spring(slideAnim, {
+      toValue: 0,
+      useNativeDriver: true,
+      speed: 12,
+      bounciness: 6,
+    }).start();
+
+    // Staggered animation for cards
+    cardAnims.forEach((anim, index) => {
+      Animated.sequence([
+        Animated.delay(index * 100),
+        Animated.parallel([
+          Animated.spring(anim.scale, {
+            toValue: 1,
+            useNativeDriver: true,
+            speed: 12,
+            bounciness: 8,
+          }),
+          Animated.timing(anim.opacity, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+        ]),
+      ]).start();
+    });
+  }, [slideAnim, cardAnims]);
 
   return (
     <View style={styles.container}>
@@ -154,13 +161,24 @@ export function HomeTab({ userData }: HomeTabProps) {
       <View style={styles.packagesSection}>
         <Text style={styles.packagesSectionTitle}>Service Packages</Text>
         <View style={styles.packagesGrid}>
-          {packages.map((pkg) => (
-            <TouchableOpacity key={pkg.key} style={styles.packageCard} activeOpacity={0.8}>
-              <Text style={styles.packageIcon}>{pkg.icon}</Text>
-              <Text style={styles.packageTitle}>{pkg.title}</Text>
-              <Text style={styles.packageWeight}>{pkg.weight}</Text>
-              <Text style={styles.packagePrice}>{pkg.price}</Text>
-            </TouchableOpacity>
+          {packages.map((pkg, index) => (
+            <Animated.View
+              key={pkg.key}
+              style={[
+                styles.packageCard,
+                {
+                  transform: [{ scale: cardAnims[index].scale }],
+                  opacity: cardAnims[index].opacity,
+                },
+              ]}
+            >
+              <TouchableOpacity activeOpacity={0.8} style={styles.cardContent}>
+                <Text style={styles.packageIcon}>{pkg.icon}</Text>
+                <Text style={styles.packageTitle}>{pkg.title}</Text>
+                <Text style={styles.packageWeight}>{pkg.weight}</Text>
+                <Text style={styles.packagePrice}>{pkg.price}</Text>
+              </TouchableOpacity>
+            </Animated.View>
           ))}
         </View>
       </View>
@@ -267,6 +285,10 @@ const styles = StyleSheet.create({
     elevation: 4,
     borderWidth: 1,
     borderColor: '#f0f0f0',
+  },
+  cardContent: {
+    width: '100%',
+    alignItems: 'center',
   },
   packageIcon: {
     fontSize: 36,

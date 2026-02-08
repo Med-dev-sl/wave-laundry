@@ -2,21 +2,76 @@ import bodyParser from 'body-parser';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import express, { NextFunction, Request, Response } from 'express';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import pool from './config/database.js';
 import userRoutes from './routes/userRoutes.js';
+import orderRoutes from './routes/orderRoutes.js';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Middleware
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
+// Initialize database tables on startup
+const initializeTables = async () => {
+  try {
+    const connection = await pool.getConnection();
+    
+    // Create orders table
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS orders (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        service_key VARCHAR(50) NOT NULL,
+        service_title VARCHAR(255) NOT NULL,
+        delivery_option ENUM('pickup', 'express', 'none') NOT NULL,
+        delivery_fee INT DEFAULT 0,
+        total_amount DECIMAL(10, 2) NOT NULL,
+        address TEXT,
+        status ENUM('accepted', 'processing', 'washing', 'drying', 'folding', 'ironing', 'packaging', 'ready', 'completed', 'cancelled') DEFAULT 'accepted',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        INDEX idx_user_id (user_id),
+        INDEX idx_status (status),
+        INDEX idx_created_at (created_at)
+      )
+    `);
+    
+    // Create order status history table
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS order_status_history (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        order_id INT NOT NULL,
+        status VARCHAR(50) NOT NULL,
+        changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        notes TEXT,
+        FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+        INDEX idx_order_id (order_id)
+      )
+    `);
+    
+    connection.release();
+    console.log('Database tables initialized successfully');
+  } catch (error) {
+    console.error('Error initializing database tables:', error);
+  }
+};
+
+// Initialize tables on startup
+initializeTables();
+
 // API Routes
 app.use('/api/users', userRoutes);
+app.use('/api/orders', orderRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req: Request, res: Response) => {
