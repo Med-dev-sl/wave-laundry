@@ -1,11 +1,11 @@
 import React, { useEffect, useRef } from 'react';
 import {
-  Animated,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Animated,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
 interface HomeTabProps {
@@ -23,6 +23,14 @@ export function HomeTab({ userData }: HomeTabProps) {
   // Animated slide-in for the services header
   const slideAnim = useRef(new Animated.Value(-300)).current;
 
+  // Card animations
+  const cardAnims = useRef(
+    packages.map(() => ({
+      scale: new Animated.Value(0),
+      opacity: new Animated.Value(0),
+    }))
+  ).current;
+
   useEffect(() => {
     Animated.spring(slideAnim, {
       toValue: 0,
@@ -30,7 +38,27 @@ export function HomeTab({ userData }: HomeTabProps) {
       speed: 12,
       bounciness: 6,
     }).start();
-  }, [slideAnim]);
+
+    // Staggered animation for cards
+    cardAnims.forEach((anim, index) => {
+      Animated.sequence([
+        Animated.delay(index * 100),
+        Animated.parallel([
+          Animated.spring(anim.scale, {
+            toValue: 1,
+            useNativeDriver: true,
+            speed: 12,
+            bounciness: 8,
+          }),
+          Animated.timing(anim.opacity, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+        ]),
+      ]).start();
+    });
+  }, [slideAnim, cardAnims]);
 
   const services = [
     { key: 'wash', label: 'Wash', icon: '🧺' },
@@ -54,6 +82,48 @@ export function HomeTab({ userData }: HomeTabProps) {
       weight: '1 kg',
       price: 'SLe 30.00',
       icon: '👔',
+    },
+    {
+      key: 'half-kg-iron',
+      title: 'Wash, Dry, Iron & Fold',
+      weight: '1/2 kg',
+      price: 'SLe 45.00',
+      icon: '♨',
+    },
+    {
+      key: 'one-kg-iron',
+      title: 'Wash, Dry, Iron & Fold',
+      weight: '1 kg',
+      price: 'SLe 50.00',
+      icon: '👗',
+    },
+    {
+      key: 'half-kg-premium',
+      title: 'Wash, Dry, Iron & Package',
+      weight: '1/2 kg',
+      price: 'SLe 50.00',
+      icon: '📦',
+    },
+    {
+      key: 'one-kg-premium',
+      title: 'Wash, Dry, Iron & Package',
+      weight: '1 kg',
+      price: 'SLe 55.00',
+      icon: '🎁',
+    },
+    {
+      key: 'stain-removal',
+      title: 'Stain Removal',
+      weight: 'Per Clothe',
+      price: 'SLe 20.00',
+      icon: '✨',
+    },
+    {
+      key: 'whites',
+      title: 'Whites',
+      weight: 'Per Clothe',
+      price: 'SLe 10.00',
+      icon: '⚪',
     },
   ];
 
@@ -181,6 +251,8 @@ const styles = StyleSheet.create({
   packagesGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    rowGap: 16,
   },
   packageCard: {
     width: '48%',
