@@ -678,3 +678,102 @@ export const updateUserSettings = async (req: Request, res: Response) => {
     });
   }
 };
+
+// Register push token for a user
+export const registerPushToken = async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const { push_token } = req.body;
+
+    if (!userId || !push_token) {
+      return res.status(400).json({ status: 'BAD_REQUEST', message: 'User ID and push_token are required' });
+    }
+
+    const connection = await pool.getConnection();
+    await connection.query('UPDATE users SET push_token = ?, updated_at = NOW() WHERE id = ?', [push_token, userId]);
+    connection.release();
+
+    res.status(200).json({ status: 'SUCCESS', message: 'Push token registered' });
+  } catch (error) {
+    res.status(500).json({ status: 'ERROR', message: error instanceof Error ? error.message : 'Failed to register push token' });
+  }
+};
+
+// Send push notification (broadcast or to specific users)
+export const sendPushNotification = async (req: Request, res: Response) => {
+  try {
+    const { userIds, title, body, data, broadcast } = req.body;
+
+    if (!title || !body) {
+      return res.status(400).json({ status: 'BAD_REQUEST', message: 'Title and body are required' });
+    }
+
+    const connection = await pool.getConnection();
+
+    let rows: any[] = [];
+
+    if (broadcast) {
+      const [users] = await connection.query('SELECT id, push_token FROM users WHERE notifications_enabled = TRUE AND push_token IS NOT NULL');
+      rows = users as any[];
+    } else if (Array.isArray(userIds) && userIds.length > 0) {
+      const [users] = await connection.query('SELECT id, push_token FROM users WHERE id IN (?) AND push_token IS NOT NULL', [userIds]);
+      rows = users as any[];
+    } else {
+      connection.release();
+      return res.status(400).json({ status: 'BAD_REQUEST', message: 'Either broadcast=true or userIds array is required' });
+    }
+
+    // Log notification for each target
+    for (const u of rows) {
+      await connection.query('INSERT INTO notifications (title, body, data, target_user_id, created_at) VALUES (?, ?, ?, ?, NOW())', [title, body, JSON.stringify(data || {}), u.id]);
+    }
+
+    connection.release();
+
+    // Get Socket.io instance from app
+    const io = req.app?.locals?.io;
+
+    // Send real-time notifications via WebSocket
+    if (io) {
+      const notification = { title, body, data: data || {}, timestamp: new Date().toISOString() };
+
+      if (broadcast) {
+        // Broadcast to all connected users
+        io.to('broadcast').emit('notification', notification);
+        console.log(`📢 Broadcast notification sent to all users`);
+      } else {
+        // Send to specific users
+        for (const userId of userIds || []) {
+          io.to(`user-${userId}`).emit('notification', notification);
+        }
+        console.log(`📨 Notification sent to ${userIds?.length || 0} specific user(s)`);
+      }
+    }
+
+    // Send via Expo push service if available
+    const messages = rows
+      .map((u) => u.push_token)
+      .filter(Boolean)
+      .map((token) => ({ to: token, sound: 'default', title, body, data: data || {} }));
+
+    // Use global fetch (Node 18+) to call Expo push API
+    if (messages.length > 0) {
+      // send individually (simple approach)
+      for (const msg of messages) {
+        try {
+          await fetch('https://exp.host/--/api/v2/push/send', {
+            method: 'POST',
+            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+            body: JSON.stringify(msg),
+          });
+        } catch (err) {
+          console.error('Failed to send push to token', msg.to, err);
+        }
+      }
+    }
+
+    res.status(200).json({ status: 'SUCCESS', message: 'Notifications sent via WebSocket + Expo', targets: rows.length });
+  } catch (error) {
+    res.status(500).json({ status: 'ERROR', message: error instanceof Error ? error.message : 'Failed to send notifications' });
+  }
+};

@@ -2,15 +2,23 @@ import bodyParser from 'body-parser';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import express, { NextFunction, Request, Response } from 'express';
+import { createServer } from 'http';
+import { Server as SocketServer } from 'socket.io';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import pool from './config/database.js';
 import orderRoutes from './routes/orderRoutes.js';
 import userRoutes from './routes/userRoutes.js';
+import notificationRoutes from './routes/notificationRoutes.js';
+import { addMissingColumns } from './migrations/addMissingColumns.js';
 
 dotenv.config();
 
 const app = express();
+const httpServer = createServer(app);
+const io = new SocketServer(httpServer, {
+  cors: { origin: '*', methods: ['GET', 'POST'] },
+});
 const PORT = process.env.PORT || 3000;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -33,6 +41,7 @@ const initializeTables = async () => {
         phone VARCHAR(20),
         password_hash VARCHAR(255) NOT NULL,
         profile_picture_url VARCHAR(500),
+        push_token VARCHAR(500),
         dark_mode BOOLEAN DEFAULT FALSE,
         notifications_enabled BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -76,6 +85,20 @@ const initializeTables = async () => {
       )
     `);
     
+    // Create notifications table (log)
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS notifications (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        title VARCHAR(255) NOT NULL,
+        body TEXT NOT NULL,
+        data JSON,
+        target_user_id INT,
+        sent_at TIMESTAMP NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (target_user_id) REFERENCES users(id) ON DELETE SET NULL
+      )
+    `);
+
     // Create order status history table
     await connection.execute(`
       CREATE TABLE IF NOT EXISTS order_status_history (
@@ -96,12 +119,21 @@ const initializeTables = async () => {
   }
 };
 
-// Initialize tables on startup
-initializeTables();
+// Initialize tables and add missing columns on startup
+(async () => {
+  try {
+    await initializeTables();
+    await addMissingColumns();
+    console.log('✅ Database initialization complete');
+  } catch (error) {
+    console.error('❌ Database initialization failed:', error);
+  }
+})();
 
 // API Routes
 app.use('/api/users', userRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req: Request, res: Response) => {
@@ -152,8 +184,33 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   });
 });
 
+// Socket.io connection handling
+io.on('connection', (socket) => {
+  console.log(`📱 User connected: ${socket.id}`);
+
+  // User joins their personal room
+  socket.on('join-user', (userId: string) => {
+    socket.join(`user-${userId}`);
+    console.log(`✅ User ${userId} joined personal room`);
+  });
+
+  // User joins general broadcast room
+  socket.on('join-broadcast', () => {
+    socket.join('broadcast');
+    console.log(`📢 User ${socket.id} joined broadcast room`);
+  });
+
+  socket.on('disconnect', () => {
+    console.log(`❌ User disconnected: ${socket.id}`);
+  });
+});
+
+// Make io accessible to routes
+app.locals.io = io;
+
 // Start server
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
   console.log(`📝 Environment: ${process.env.NODE_ENV}`);
+  console.log(`🔌 WebSocket (Socket.io) enabled on ws://localhost:${PORT}`);
 });

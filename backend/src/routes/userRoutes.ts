@@ -9,6 +9,7 @@ import {
     getDeliveryAddresses,
     getUserById,
     getUserProfile,
+    registerPushToken,
     login,
     register,
     resetPassword,
@@ -36,6 +37,9 @@ router.get('/:userId/addresses', getDeliveryAddresses);
 router.post('/:userId/addresses', addDeliveryAddress);
 router.put('/:userId/addresses/:addressId', updateDeliveryAddress);
 router.delete('/:userId/addresses/:addressId', deleteDeliveryAddress);
+
+// Push token registration
+router.post('/:userId/push-token', registerPushToken);
 
 // User Settings Routes
 router.put('/:userId/settings', updateUserSettings);
