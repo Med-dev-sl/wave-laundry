@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import {
-  createOrder,
-  getUserOrders,
-  getOrderById,
-  updateOrderStatus,
-  cancelOrder,
+    cancelOrder,
+    createOrder,
+    getOrderById,
+    getUserOrders,
+    updateOrderStatus,
 } from '../controllers/orderController.js';
 
 const router = Router();

@@ -2,12 +2,11 @@ import bodyParser from 'body-parser';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import express, { NextFunction, Request, Response } from 'express';
-import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import pool from './config/database.js';
-import userRoutes from './routes/userRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
+import userRoutes from './routes/userRoutes.js';
 
 dotenv.config();
 
@@ -25,6 +24,37 @@ const initializeTables = async () => {
   try {
     const connection = await pool.getConnection();
     
+    // Create users table
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        name VARCHAR(255) NOT NULL,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        phone VARCHAR(20),
+        password_hash VARCHAR(255) NOT NULL,
+        profile_picture_url VARCHAR(500),
+        dark_mode BOOLEAN DEFAULT FALSE,
+        notifications_enabled BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_email (email)
+      )
+    `);
+
+    // Create delivery addresses table
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS delivery_addresses (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        user_id INT NOT NULL,
+        address VARCHAR(500) NOT NULL,
+        is_default BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        INDEX idx_user_id (user_id)
+      )
+    `);
+    
     // Create orders table
     await connection.execute(`
       CREATE TABLE IF NOT EXISTS orders (
@@ -36,7 +66,7 @@ const initializeTables = async () => {
         delivery_fee INT DEFAULT 0,
         total_amount DECIMAL(10, 2) NOT NULL,
         address TEXT,
-        status ENUM('accepted', 'processing', 'washing', 'drying', 'folding', 'ironing', 'packaging', 'ready', 'completed', 'cancelled') DEFAULT 'accepted',
+        status ENUM('pending', 'accepted', 'processing', 'washing', 'drying', 'folding', 'ironing', 'packaging', 'ready', 'completed', 'cancelled') DEFAULT 'pending',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,

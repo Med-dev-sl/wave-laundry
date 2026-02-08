@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS orders (
   delivery_fee INT DEFAULT 0,
   total_amount DECIMAL(10, 2) NOT NULL,
   address TEXT,
-  status ENUM('accepted', 'processing', 'washing', 'drying', 'folding', 'ironing', 'packaging', 'ready', 'completed', 'cancelled') DEFAULT 'accepted',
+  status ENUM('pending', 'accepted', 'processing', 'washing', 'drying', 'folding', 'ironing', 'packaging', 'ready', 'completed', 'cancelled') DEFAULT 'pending',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,

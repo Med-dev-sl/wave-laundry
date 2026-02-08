@@ -40,9 +40,9 @@ export default function Home() {
       case 'orders':
         return <OrdersTab userData={userData} />;
       case 'history':
-        return <HistoryTab />;
+        return <HistoryTab userData={userData} />;
       case 'settings':
-        return <SettingsTab />;
+        return <SettingsTab userData={userData} />;
       default:
         return <HomeTab userData={userData} />;
     }

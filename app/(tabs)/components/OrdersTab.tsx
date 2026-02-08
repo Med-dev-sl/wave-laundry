@@ -1,17 +1,18 @@
 import React, { useState } from 'react';
 import {
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
 const API_BASE_URL = 'http://10.140.218.56:3000/api';
 
 type OrderStep = 'serviceSelection' | 'deliveryOption' | 'addressInput' | 'confirmation';
+type TabType = 'placeOrder' | 'trackOrder';
 
 interface UserData {
   userId?: string;
@@ -25,77 +26,42 @@ interface OrdersTabProps {
 }
 
 export function OrdersTab({ userData }: OrdersTabProps) {
+  const [activeTab, setActiveTab] = useState<TabType>('placeOrder');
   const [currentStep, setCurrentStep] = useState<OrderStep>('serviceSelection');
   const [selectedService, setSelectedService] = useState<any>(null);
   const [deliveryOption, setDeliveryOption] = useState<string | null>(null);
   const [address, setAddress] = useState('');
   const [loading, setLoading] = useState(false);
+  const [userOrders, setUserOrders] = useState<any[]>([]);
+  const [ordersFetching, setOrdersFetching] = useState(false);
 
   const packages = [
-    {
-      key: 'half-kg',
-      title: 'Wash, Dry & Fold',
-      weight: '1/2 kg',
-      price: 'SLe 25.00',
-      icon: '🧺',
-    },
-    {
-      key: 'one-kg',
-      title: 'Wash, Dry & Fold',
-      weight: '1 kg',
-      price: 'SLe 30.00',
-      icon: '👔',
-    },
-    {
-      key: 'half-kg-iron',
-      title: 'Wash, Dry, Iron & Fold',
-      weight: '1/2 kg',
-      price: 'SLe 45.00',
-      icon: '♨',
-    },
-    {
-      key: 'one-kg-iron',
-      title: 'Wash, Dry, Iron & Fold',
-      weight: '1 kg',
-      price: 'SLe 50.00',
-      icon: '👗',
-    },
-    {
-      key: 'half-kg-premium',
-      title: 'Wash, Dry, Iron & Package',
-      weight: '1/2 kg',
-      price: 'SLe 50.00',
-      icon: '📦',
-    },
-    {
-      key: 'one-kg-premium',
-      title: 'Wash, Dry, Iron & Package',
-      weight: '1 kg',
-      price: 'SLe 55.00',
-      icon: '🎁',
-    },
-    {
-      key: 'stain-removal',
-      title: 'Stain Removal',
-      weight: 'Per Clothe',
-      price: 'SLe 20.00',
-      icon: '✨',
-    },
-    {
-      key: 'whites',
-      title: 'Whites',
-      weight: 'Per Clothe',
-      price: 'SLe 10.00',
-      icon: '⚪',
-    },
-    {
-      key: 'emergency',
-      title: 'Emergency Service',
-      weight: 'Any Package',
-      price: '2x Package Price',
-      icon: '🚨',
-    },
+    { key: 'half-kg', title: 'Wash, Dry & Fold', weight: '1/2 kg', price: 'SLe 25.00', icon: '🧺' },
+    { key: 'one-kg', title: 'Wash, Dry & Fold', weight: '1 kg', price: 'SLe 30.00', icon: '👔' },
+    { key: 'half-kg-iron', title: 'Wash, Dry, Iron & Fold', weight: '1/2 kg', price: 'SLe 45.00', icon: '♨' },
+    { key: 'one-kg-iron', title: 'Wash, Dry, Iron & Fold', weight: '1 kg', price: 'SLe 50.00', icon: '👗' },
+    { key: 'half-kg-premium', title: 'Wash, Dry, Iron & Package', weight: '1/2 kg', price: 'SLe 50.00', icon: '📦' },
+    { key: 'one-kg-premium', title: 'Wash, Dry, Iron & Package', weight: '1 kg', price: 'SLe 55.00', icon: '🎁' },
+    { key: 'stain-removal', title: 'Stain Removal', weight: 'Per Clothe', price: 'SLe 20.00', icon: '✨' },
+    { key: 'whites', title: 'Whites', weight: 'Per Clothe', price: 'SLe 10.00', icon: '⚪' },
+    { key: 'emergency', title: 'Emergency Service', weight: 'Any Package', price: '2x Package Price', icon: '🚨' },
   ];
+
+  const fetchUserOrders = async () => {
+    if (!userData?.userId) return;
+    setOrdersFetching(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/orders/user/${userData.userId}`);
+      if (response.ok) {
+        const result = await response.json();
+        setUserOrders(result.orders || []);
+      }
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+    } finally {
+      setOrdersFetching(false);
+    }
+  };
 
   const handleServiceSelect = (service: any) => {
     setSelectedService(service);
@@ -135,45 +101,41 @@ export function OrdersTab({ userData }: OrdersTabProps) {
         deliveryOption,
         address: deliveryOption === 'none' ? null : address,
         deliveryFee: deliveryOption === 'none' ? 0 : calculateDeliveryFee(),
-        status: 'accepted',
       };
 
+      console.log('Sending order data:', orderData);
       const response = await fetch(`${API_BASE_URL}/orders`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(orderData),
       });
 
+      console.log('Response status:', response.status);
+      const result = await response.json();
+      console.log('Response data:', result);
+
       if (!response.ok) {
-        throw new Error('Failed to place order');
+        throw new Error(result.error || 'Failed to place order');
       }
 
-      const result = await response.json();
-      Alert.alert('Success', 'Order placed successfully!', [
+      Alert.alert('Success', 'Order placed! Status: Pending', [
         {
           text: 'OK',
           onPress: () => {
             resetOrder();
+            setActiveTab('trackOrder');
+            fetchUserOrders();
           },
         },
       ]);
     } catch (error) {
-      Alert.alert(
-        'Error',
-        error instanceof Error ? error.message : 'Failed to place order'
-      );
+      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to place order');
     } finally {
       setLoading(false);
     }
   };
 
-  const calculateDeliveryFee = (): number => {
-    // This would be determined by actual location logic from backend
-    // For now, default to 10 (closer location)
-    return 10;
-  };
+  const calculateDeliveryFee = (): number => 10;
 
   const resetOrder = () => {
     setCurrentStep('serviceSelection');
@@ -182,217 +144,400 @@ export function OrdersTab({ userData }: OrdersTabProps) {
     setAddress('');
   };
 
-  // Step 1: Service Selection
-  if (currentStep === 'serviceSelection') {
-    return (
-      <View style={styles.tabContent}>
-        <View style={styles.header}>
-          <Text style={styles.headerIcon}>👕</Text>
-          <Text style={styles.headerTitle}>Select Service</Text>
-        </View>
+  const getStatusColor = (status: string) => {
+    const colors: any = {
+      pending: { bg: '#FFE8E8', text: '#FF6B6B' },
+      accepted: { bg: '#E8F5E9', text: '#4CAF50' },
+      processing: { bg: '#E3F2FD', text: '#1976D2' },
+      washing: { bg: '#E3F2FD', text: '#1976D2' },
+      drying: { bg: '#E3F2FD', text: '#1976D2' },
+      folding: { bg: '#E3F2FD', text: '#1976D2' },
+      ironing: { bg: '#E3F2FD', text: '#1976D2' },
+      packaging: { bg: '#E3F2FD', text: '#1976D2' },
+      ready: { bg: '#F3E5F5', text: '#7B1FA2' },
+      completed: { bg: '#C8E6C9', text: '#2E7D32' },
+      cancelled: { bg: '#F0F0F0', text: '#666' },
+    };
+    return colors[status] || { bg: '#F0F0F0', text: '#666' };
+  };
 
-        <ScrollView showsVerticalScrollIndicator={false} style={styles.servicesList}>
-          {packages.map((pkg) => (
-            <TouchableOpacity
-              key={pkg.key}
-              style={styles.serviceCard}
-              onPress={() => handleServiceSelect(pkg)}
-            >
-              <Text style={styles.serviceIcon}>{pkg.icon}</Text>
-              <View style={styles.serviceInfo}>
-                <Text style={styles.serviceName}>{pkg.title}</Text>
-              </View>
-              <Text style={styles.arrow}>›</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+  const renderTrackOrderTab = () => (
+    <View style={styles.tabContent}>
+      <View style={styles.header}>
+        <Text style={styles.headerIcon}>📦</Text>
+        <Text style={styles.headerTitle}>Track Orders</Text>
       </View>
-    );
-  }
 
-  // Step 2: Delivery Option
-  if (currentStep === 'deliveryOption') {
-    return (
-      <View style={styles.tabContent}>
-        <View style={styles.header}>
-          <Text style={styles.headerIcon}>🚚</Text>
-          <Text style={styles.headerTitle}>Delivery Option</Text>
+      {ordersFetching ? (
+        <View style={styles.centerContainer}>
+          <Text style={styles.loadingText}>Loading orders...</Text>
         </View>
-
-        <View style={styles.selectedService}>
-          <Text style={styles.selectedServiceText}>
-            Selected: <Text style={styles.bold}>{selectedService?.title}</Text>
-          </Text>
+      ) : userOrders.length === 0 ? (
+        <View style={styles.centerContainer}>
+          <Text style={styles.emptyText}>No orders yet</Text>
+          <Text style={styles.emptySubtext}>Place an order to see it here</Text>
         </View>
+      ) : (
+        <ScrollView showsVerticalScrollIndicator={false} style={styles.ordersList}>
+          {userOrders.map((order) => {
+            const statusColor = getStatusColor(order.status);
+            return (
+              <View key={order.id} style={styles.orderCard}>
+                <View style={styles.orderHeader}>
+                  <View style={styles.orderInfo}>
+                    <Text style={styles.orderTitle}>{order.service_title}</Text>
+                    <Text style={styles.orderDate}>{new Date(order.created_at).toLocaleDateString()}</Text>
+                  </View>
+                  <View style={[styles.statusBadge, { backgroundColor: statusColor.bg }]}>
+                    <Text style={[styles.statusText, { color: statusColor.text }]}>
+                      {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                    </Text>
+                  </View>
+                </View>
 
-        <View style={styles.infoBox}>
-          <Text style={styles.infoTitle}>📍 Location-Based Delivery Fee</Text>
-          <Text style={styles.infoText}>
-            Closer to our location: SLe 10{'\n'}
-            Not closer: SLe 20
-          </Text>
+                <View style={styles.orderDetails}>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Delivery:</Text>
+                    <Text style={styles.detailValue}>{order.delivery_option}</Text>
+                  </View>
+                  {order.address && (
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Address:</Text>
+                      <Text style={styles.detailValue}>{order.address}</Text>
+                    </View>
+                  )}
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Fee:</Text>
+                    <Text style={styles.detailValue}>SLe {order.delivery_fee}</Text>
+                  </View>
+                </View>
+              </View>
+            );
+          })}
+        </ScrollView>
+      )}
+    </View>
+  );
+
+  const renderPlaceOrderContent = () => {
+    if (currentStep === 'serviceSelection') {
+      return (
+        <View style={styles.tabContent}>
+          <View style={styles.header}>
+            <Text style={styles.headerIcon}>👕</Text>
+            <Text style={styles.headerTitle}>Select Service</Text>
+          </View>
+
+          <ScrollView showsVerticalScrollIndicator={false} style={styles.servicesList}>
+            {packages.map((pkg) => (
+              <TouchableOpacity key={pkg.key} style={styles.serviceCard} onPress={() => handleServiceSelect(pkg)}>
+                <Text style={styles.serviceIcon}>{pkg.icon}</Text>
+                <View style={styles.serviceInfo}>
+                  <Text style={styles.serviceName}>{pkg.title}</Text>
+                </View>
+                <Text style={styles.arrow}>›</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
+      );
+    }
 
-        <View style={styles.optionsContainer}>
-          <TouchableOpacity
-            style={styles.optionCard}
-            onPress={() => handleDeliverySelect('pickup')}
-          >
-            <Text style={styles.optionIcon}>🚗</Text>
-            <Text style={styles.optionTitle}>Pickup & Delivery</Text>
-            <Text style={styles.optionDescription}>We pick up and deliver</Text>
-            <Text style={styles.optionPrice}>SLe 10-20 (Fee applies)</Text>
+    if (currentStep === 'deliveryOption') {
+      return (
+        <View style={styles.tabContent}>
+          <View style={styles.header}>
+            <Text style={styles.headerIcon}>🚚</Text>
+            <Text style={styles.headerTitle}>Delivery Option</Text>
+          </View>
+
+          <View style={styles.selectedService}>
+            <Text style={styles.selectedServiceText}>
+              Selected: <Text style={styles.bold}>{selectedService?.title}</Text>
+            </Text>
+          </View>
+
+          <View style={styles.infoBox}>
+            <Text style={styles.infoTitle}>📍 Delivery Fee</Text>
+            <Text style={styles.infoText}>Closer: SLe 10 | Not closer: SLe 20</Text>
+          </View>
+
+          <View style={styles.optionsContainer}>
+            <TouchableOpacity style={styles.optionCard} onPress={() => handleDeliverySelect('pickup')}>
+              <Text style={styles.optionIcon}>🚗</Text>
+              <Text style={styles.optionTitle}>Pickup & Delivery</Text>
+              <Text style={styles.optionDescription}>We pick up and deliver</Text>
+              <Text style={styles.optionPrice}>SLe 10-20</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.optionCard} onPress={() => handleDeliverySelect('express')}>
+              <Text style={styles.optionIcon}>⚡</Text>
+              <Text style={styles.optionTitle}>Express</Text>
+              <Text style={styles.optionDescription}>Fast service</Text>
+              <Text style={styles.optionPrice}>SLe 10-20</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.optionCard} onPress={() => handleDeliverySelect('none')}>
+              <Text style={styles.optionIcon}>👤</Text>
+              <Text style={styles.optionTitle}>Self Delivery</Text>
+              <Text style={styles.optionDescription}>You deliver</Text>
+              <Text style={styles.optionPrice}>Free</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity style={styles.backButton} onPress={() => setCurrentStep('serviceSelection')}>
+            <Text style={styles.backButtonText}>← Back</Text>
           </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.optionCard}
-            onPress={() => handleDeliverySelect('express')}
-          >
-            <Text style={styles.optionIcon}>⚡</Text>
-            <Text style={styles.optionTitle}>Express</Text>
-            <Text style={styles.optionDescription}>Fast pickup & delivery</Text>
-            <Text style={styles.optionPrice}>SLe 10-20 (Fee applies)</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.optionCard}
-            onPress={() => handleDeliverySelect('none')}
-          >
-            <Text style={styles.optionIcon}>👤</Text>
-            <Text style={styles.optionTitle}>Self Delivery</Text>
-            <Text style={styles.optionDescription}>You deliver & pickup</Text>
-            <Text style={styles.optionPrice}>Free (No fee)</Text>
-          </TouchableOpacity>
         </View>
+      );
+    }
 
+    if (currentStep === 'addressInput') {
+      return (
+        <View style={styles.tabContent}>
+          <View style={styles.header}>
+            <Text style={styles.headerIcon}>📍</Text>
+            <Text style={styles.headerTitle}>Delivery Address</Text>
+          </View>
+
+          <View style={styles.selectedService}>
+            <Text style={styles.selectedServiceText}>
+              <Text style={styles.bold}>{selectedService?.title}</Text>
+            </Text>
+          </View>
+
+          <Text style={styles.label}>Enter Your Address</Text>
+          <TextInput
+            style={styles.addressInput}
+            placeholder="Enter full address with street, area, and landmark"
+            placeholderTextColor="#999"
+            multiline
+            numberOfLines={4}
+            value={address}
+            onChangeText={setAddress}
+          />
+
+          <View style={styles.buttonGroup}>
+            <TouchableOpacity style={styles.secondaryButton} onPress={() => setCurrentStep('deliveryOption')}>
+              <Text style={styles.secondaryButtonText}>Back</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.primaryButton} onPress={handleAddressSubmit}>
+              <Text style={styles.primaryButtonText}>Continue</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      );
+    }
+
+    if (currentStep === 'confirmation') {
+      return (
+        <View style={styles.tabContent}>
+          <View style={styles.header}>
+            <Text style={styles.headerIcon}>✓</Text>
+            <Text style={styles.headerTitle}>Confirm Order</Text>
+          </View>
+
+          <ScrollView showsVerticalScrollIndicator={false}>
+            <View style={styles.summaryBox}>
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryLabel}>Service:</Text>
+                <Text style={styles.summaryValue}>{selectedService?.title}</Text>
+              </View>
+
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryLabel}>Delivery:</Text>
+                <Text style={styles.summaryValue}>
+                  {deliveryOption === 'pickup' ? 'Pickup & Delivery' : deliveryOption === 'express' ? 'Express' : 'Self Delivery'}
+                </Text>
+              </View>
+
+              {deliveryOption !== 'none' && (
+                <>
+                  <View style={styles.summaryItem}>
+                    <Text style={styles.summaryLabel}>Fee:</Text>
+                    <Text style={styles.summaryValue}>SLe {calculateDeliveryFee()}</Text>
+                  </View>
+
+                  <View style={styles.summaryItem}>
+                    <Text style={styles.summaryLabel}>Address:</Text>
+                    <Text style={styles.summaryValue}>{address}</Text>
+                  </View>
+                </>
+              )}
+            </View>
+          </ScrollView>
+
+          <View style={styles.buttonGroup}>
+            <TouchableOpacity style={styles.secondaryButton} onPress={() => setCurrentStep('deliveryOption')}>
+              <Text style={styles.secondaryButtonText}>Back</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.primaryButton, loading && styles.buttonDisabled]}
+              onPress={handleSubmitOrder}
+              disabled={loading}
+            >
+              <Text style={styles.primaryButtonText}>{loading ? 'Processing...' : 'Place Order'}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      );
+    }
+
+    return null;
+  };
+
+  return (
+    <View style={{ flex: 1 }}>
+      {/* Tab Navigation */}
+      <View style={styles.tabNavigation}>
         <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => setCurrentStep('serviceSelection')}
+          style={[styles.tabButton, activeTab === 'placeOrder' && styles.tabButtonActive]}
+          onPress={() => setActiveTab('placeOrder')}
         >
-          <Text style={styles.backButtonText}>← Back</Text>
+          <Text style={[styles.tabButtonText, activeTab === 'placeOrder' && styles.tabButtonTextActive]}>📝 Place</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabButton, activeTab === 'trackOrder' && styles.tabButtonActive]}
+          onPress={() => {
+            setActiveTab('trackOrder');
+            fetchUserOrders();
+          }}
+        >
+          <Text style={[styles.tabButtonText, activeTab === 'trackOrder' && styles.tabButtonTextActive]}>📦 Track</Text>
         </TouchableOpacity>
       </View>
-    );
-  }
 
-  // Step 3: Address Input (if Pickup or Express)
-  if (currentStep === 'addressInput') {
-    return (
-      <View style={styles.tabContent}>
-        <View style={styles.header}>
-          <Text style={styles.headerIcon}>📍</Text>
-          <Text style={styles.headerTitle}>Delivery Address</Text>
-        </View>
-
-        <View style={styles.selectedService}>
-          <Text style={styles.selectedServiceText}>
-            <Text style={styles.bold}>{selectedService?.title}</Text> • {deliveryOption === 'pickup' ? 'Pickup & Delivery' : 'Express'}
-          </Text>
-        </View>
-
-        <Text style={styles.label}>Enter Your Address</Text>
-        <TextInput
-          style={styles.addressInput}
-          placeholder="Enter full address with street, area, and landmark"
-          placeholderTextColor="#999"
-          multiline={true}
-          numberOfLines={4}
-          value={address}
-          onChangeText={setAddress}
-        />
-
-        <View style={styles.buttonGroup}>
-          <TouchableOpacity
-            style={styles.secondaryButton}
-            onPress={() => setCurrentStep('deliveryOption')}
-          >
-            <Text style={styles.secondaryButtonText}>Back</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.primaryButton}
-            onPress={handleAddressSubmit}
-          >
-            <Text style={styles.primaryButtonText}>Continue</Text>
-          </TouchableOpacity>
-        </View>
+      {/* Content */}
+      <View style={{ flex: 1 }}>
+        {activeTab === 'trackOrder' ? renderTrackOrderTab() : renderPlaceOrderContent()}
       </View>
-    );
-  }
-
-  // Step 4: Confirmation
-  if (currentStep === 'confirmation') {
-    return (
-      <View style={styles.tabContent}>
-        <View style={styles.header}>
-          <Text style={styles.headerIcon}>✓</Text>
-          <Text style={styles.headerTitle}>Confirm Order</Text>
-        </View>
-
-        <ScrollView showsVerticalScrollIndicator={false}>
-          <View style={styles.summaryBox}>
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>Service:</Text>
-              <Text style={styles.summaryValue}>{selectedService?.title}</Text>
-            </View>
-
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>Delivery:</Text>
-              <Text style={styles.summaryValue}>
-                {deliveryOption === 'pickup'
-                  ? 'Pickup & Delivery'
-                  : deliveryOption === 'express'
-                  ? 'Express'
-                  : 'Self Delivery'}
-              </Text>
-            </View>
-
-            {deliveryOption !== 'none' && (
-              <>
-                <View style={styles.summaryItem}>
-                  <Text style={styles.summaryLabel}>Delivery Fee:</Text>
-                  <Text style={styles.summaryValue}>SLe {calculateDeliveryFee()}</Text>
-                </View>
-
-                <View style={styles.summaryItem}>
-                  <Text style={styles.summaryLabel}>Address:</Text>
-                  <Text style={styles.summaryValue}>{address}</Text>
-                </View>
-              </>
-            )}
-          </View>
-        </ScrollView>
-
-        <View style={styles.buttonGroup}>
-          <TouchableOpacity
-            style={styles.secondaryButton}
-            onPress={() => setCurrentStep('deliveryOption')}
-          >
-            <Text style={styles.secondaryButtonText}>Back</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.primaryButton, loading && styles.buttonDisabled]}
-            onPress={handleSubmitOrder}
-            disabled={loading}
-          >
-            <Text style={styles.primaryButtonText}>
-              {loading ? 'Processing...' : 'Place Order'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  }
-
-  return null;
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
+  tabNavigation: {
+    flexDirection: 'row',
+    backgroundColor: '#f8f9fa',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    marginTop: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    borderBottomWidth: 4,
+    borderBottomColor: 'transparent',
+  },
+  tabButtonActive: {
+    borderBottomColor: '#007AFF',
+  },
+  tabButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#999',
+    fontFamily: 'Trebuchet MS',
+  },
+  tabButtonTextActive: {
+    color: '#007AFF',
+    fontWeight: '700',
+  },
   tabContent: {
     flex: 1,
     padding: 20,
     backgroundColor: '#fff',
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#666',
+    fontFamily: 'Trebuchet MS',
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    marginBottom: 8,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#999',
+    fontFamily: 'Trebuchet MS',
+  },
+  ordersList: {
+    flex: 1,
+  },
+  orderCard: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  orderHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  orderInfo: {
+    flex: 1,
+  },
+  orderTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    marginBottom: 4,
+  },
+  orderDate: {
+    fontSize: 12,
+    color: '#999',
+  },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: '700',
+    fontFamily: 'Trebuchet MS',
+  },
+  orderDetails: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 10,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  detailLabel: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '600',
+  },
+  detailValue: {
+    fontSize: 12,
+    color: '#1a1a1a',
+    fontWeight: '600',
+    textAlign: 'right',
+    flex: 1,
+    marginLeft: 10,
   },
   header: {
     alignItems: 'center',
@@ -412,15 +557,6 @@ const styles = StyleSheet.create({
   servicesList: {
     flex: 1,
     marginBottom: 16,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1a1a1a',
-    marginBottom: 12,
   },
   serviceCard: {
     flexDirection: 'row',
@@ -449,16 +585,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1a1a1a',
     marginBottom: 2,
-  },
-  serviceDetail: {
-    fontSize: 12,
-    color: '#007AFF',
-    fontWeight: '700',
-  },
-  servicePrice: {
-    fontSize: 12,
-    color: '#007AFF',
-    fontWeight: '700',
   },
   arrow: {
     fontSize: 18,

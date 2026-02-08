@@ -343,3 +343,338 @@ export const resetPassword = async (req: Request, res: Response) => {
   }
 };
 
+// Get user profile
+export const getUserProfile = async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({
+        status: 'BAD_REQUEST',
+        message: 'User ID is required',
+      });
+    }
+
+    const connection = await pool.getConnection();
+    const [users] = await connection.query(
+      'SELECT id, name, email, phone, profile_picture_url, dark_mode, notifications_enabled FROM users WHERE id = ?',
+      [userId]
+    );
+    connection.release();
+
+    if ((users as any[]).length === 0) {
+      return res.status(404).json({
+        status: 'NOT_FOUND',
+        message: 'User not found',
+      });
+    }
+
+    res.status(200).json({
+      status: 'SUCCESS',
+      data: (users as any[])[0],
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'ERROR',
+      message: error instanceof Error ? error.message : 'Failed to get user profile',
+    });
+  }
+};
+
+// Update user profile
+export const updateUserProfile = async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const { name, email, phone, profile_picture_url } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({
+        status: 'BAD_REQUEST',
+        message: 'User ID is required',
+      });
+    }
+
+    const connection = await pool.getConnection();
+    
+    // Check if email is already taken by another user
+    if (email) {
+      const [existing] = await connection.query(
+        'SELECT id FROM users WHERE email = ? AND id != ?',
+        [email, userId]
+      );
+      if ((existing as any[]).length > 0) {
+        connection.release();
+        return res.status(409).json({
+          status: 'CONFLICT',
+          message: 'Email already in use',
+        });
+      }
+    }
+
+    await connection.query(
+      'UPDATE users SET name = COALESCE(?, name), email = COALESCE(?, email), phone = COALESCE(?, phone), profile_picture_url = COALESCE(?, profile_picture_url), updated_at = NOW() WHERE id = ?',
+      [name || null, email || null, phone || null, profile_picture_url || null, userId]
+    );
+    connection.release();
+
+    res.status(200).json({
+      status: 'SUCCESS',
+      message: 'Profile updated successfully',
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'ERROR',
+      message: error instanceof Error ? error.message : 'Failed to update profile',
+    });
+  }
+};
+
+// Change password
+export const changePassword = async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const { oldPassword, newPassword, confirmPassword } = req.body;
+
+    if (!userId || !oldPassword || !newPassword || !confirmPassword) {
+      return res.status(400).json({
+        status: 'BAD_REQUEST',
+        message: 'All fields are required',
+      });
+    }
+
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({
+        status: 'BAD_REQUEST',
+        message: 'New passwords do not match',
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        status: 'BAD_REQUEST',
+        message: 'Password must be at least 6 characters',
+      });
+    }
+
+    const connection = await pool.getConnection();
+    const [users] = await connection.query(
+      'SELECT password_hash FROM users WHERE id = ?',
+      [userId]
+    );
+
+    if ((users as any[]).length === 0) {
+      connection.release();
+      return res.status(404).json({
+        status: 'NOT_FOUND',
+        message: 'User not found',
+      });
+    }
+
+    const passwordMatch = await bcrypt.compare(oldPassword, (users as any[])[0].password_hash);
+    if (!passwordMatch) {
+      connection.release();
+      return res.status(401).json({
+        status: 'UNAUTHORIZED',
+        message: 'Old password is incorrect',
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await connection.query(
+      'UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ?',
+      [hashedPassword, userId]
+    );
+    connection.release();
+
+    res.status(200).json({
+      status: 'SUCCESS',
+      message: 'Password changed successfully',
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'ERROR',
+      message: error instanceof Error ? error.message : 'Failed to change password',
+    });
+  }
+};
+
+// Get delivery addresses
+export const getDeliveryAddresses = async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({
+        status: 'BAD_REQUEST',
+        message: 'User ID is required',
+      });
+    }
+
+    const connection = await pool.getConnection();
+    const [addresses] = await connection.query(
+      'SELECT id, address, is_default FROM delivery_addresses WHERE user_id = ? ORDER BY is_default DESC',
+      [userId]
+    );
+    connection.release();
+
+    res.status(200).json({
+      status: 'SUCCESS',
+      data: addresses || [],
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'ERROR',
+      message: error instanceof Error ? error.message : 'Failed to get addresses',
+    });
+  }
+};
+
+// Add delivery address
+export const addDeliveryAddress = async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const { address, is_default } = req.body;
+
+    if (!userId || !address) {
+      return res.status(400).json({
+        status: 'BAD_REQUEST',
+        message: 'User ID and address are required',
+      });
+    }
+
+    const connection = await pool.getConnection();
+    
+    // If this is default, remove default from other addresses
+    if (is_default) {
+      await connection.query(
+        'UPDATE delivery_addresses SET is_default = FALSE WHERE user_id = ?',
+        [userId]
+      );
+    }
+
+    const [result] = await connection.query(
+      'INSERT INTO delivery_addresses (user_id, address, is_default) VALUES (?, ?, ?)',
+      [userId, address, is_default ? true : false]
+    );
+    connection.release();
+
+    res.status(201).json({
+      status: 'CREATED',
+      message: 'Address added successfully',
+      data: {
+        id: (result as any).insertId,
+        address,
+        is_default: is_default ? true : false,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'ERROR',
+      message: error instanceof Error ? error.message : 'Failed to add address',
+    });
+  }
+};
+
+// Update delivery address
+export const updateDeliveryAddress = async (req: Request, res: Response) => {
+  try {
+    const { userId, addressId } = req.params;
+    const { address, is_default } = req.body;
+
+    if (!userId || !addressId || !address) {
+      return res.status(400).json({
+        status: 'BAD_REQUEST',
+        message: 'User ID, address ID, and address are required',
+      });
+    }
+
+    const connection = await pool.getConnection();
+    
+    // If this is default, remove default from other addresses
+    if (is_default) {
+      await connection.query(
+        'UPDATE delivery_addresses SET is_default = FALSE WHERE user_id = ?',
+        [userId]
+      );
+    }
+
+    await connection.query(
+      'UPDATE delivery_addresses SET address = ?, is_default = ? WHERE id = ? AND user_id = ?',
+      [address, is_default ? true : false, addressId, userId]
+    );
+    connection.release();
+
+    res.status(200).json({
+      status: 'SUCCESS',
+      message: 'Address updated successfully',
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'ERROR',
+      message: error instanceof Error ? error.message : 'Failed to update address',
+    });
+  }
+};
+
+// Delete delivery address
+export const deleteDeliveryAddress = async (req: Request, res: Response) => {
+  try {
+    const { userId, addressId } = req.params;
+
+    if (!userId || !addressId) {
+      return res.status(400).json({
+        status: 'BAD_REQUEST',
+        message: 'User ID and address ID are required',
+      });
+    }
+
+    const connection = await pool.getConnection();
+    await connection.query(
+      'DELETE FROM delivery_addresses WHERE id = ? AND user_id = ?',
+      [addressId, userId]
+    );
+    connection.release();
+
+    res.status(200).json({
+      status: 'SUCCESS',
+      message: 'Address deleted successfully',
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'ERROR',
+      message: error instanceof Error ? error.message : 'Failed to delete address',
+    });
+  }
+};
+
+// Update user settings
+export const updateUserSettings = async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const { dark_mode, notifications_enabled } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({
+        status: 'BAD_REQUEST',
+        message: 'User ID is required',
+      });
+    }
+
+    const connection = await pool.getConnection();
+    await connection.query(
+      'UPDATE users SET dark_mode = COALESCE(?, dark_mode), notifications_enabled = COALESCE(?, notifications_enabled), updated_at = NOW() WHERE id = ?',
+      [dark_mode !== undefined ? dark_mode : null, notifications_enabled !== undefined ? notifications_enabled : null, userId]
+    );
+    connection.release();
+
+    res.status(200).json({
+      status: 'SUCCESS',
+      message: 'Settings updated successfully',
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'ERROR',
+      message: error instanceof Error ? error.message : 'Failed to update settings',
+    });
+  }
+};
