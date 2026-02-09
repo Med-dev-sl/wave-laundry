@@ -1,18 +1,22 @@
+import * as Device from 'expo-device';
+import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
+import { io, Socket } from 'socket.io-client';
 
 const API_BASE_URL = 'http://10.140.218.56:3000/api';
+const SOCKET_URL = 'http://10.140.218.56:3000';
 
 interface UserData {
   userId?: string;
@@ -27,6 +31,7 @@ interface SettingsTabProps {
 
 export function SettingsTab({ userData }: SettingsTabProps) {
   const router = useRouter();
+  const [socket, setSocket] = useState<Socket | null>(null);
 
   // Profile State
   const [profile, setProfile] = useState<any>(null);
@@ -55,7 +60,50 @@ export function SettingsTab({ userData }: SettingsTabProps) {
   useEffect(() => {
     fetchProfile();
     fetchAddresses();
+    initializeSocket();
   }, []);
+
+  const initializeSocket = async () => {
+    if (!userData?.userId) return;
+
+    try {
+      const newSocket = io(SOCKET_URL, {
+        transports: ['websocket'],
+        reconnection: true,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+        reconnectionAttempts: 5,
+      });
+
+      newSocket.on('connect', () => {
+        console.log('✅ Connected to WebSocket');
+        newSocket.emit('join-user', userData.userId);
+      });
+
+      newSocket.on('notification', (notification) => {
+        console.log('📬 Real-time notification received:', notification);
+        Alert.alert(notification.title, notification.body, [
+          { text: 'OK', onPress: () => {} },
+        ]);
+      });
+
+      newSocket.on('disconnect', () => {
+        console.log('❌ Disconnected from WebSocket');
+      });
+
+      newSocket.on('error', (error) => {
+        console.error('Socket.io error:', error);
+      });
+
+      setSocket(newSocket);
+
+      return () => {
+        newSocket.disconnect();
+      };
+    } catch (error) {
+      console.error('Failed to initialize socket:', error);
+    }
+  };
 
   const fetchProfile = async () => {
     if (!userData?.userId) return;
@@ -248,17 +296,8 @@ export function SettingsTab({ userData }: SettingsTabProps) {
   };
 
   const handleDarkModeToggle = async (value: boolean) => {
-    setDarkMode(value);
-    try {
-      await fetch(`${API_BASE_URL}/users/${userData?.userId}/settings`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dark_mode: value }),
-      });
-    } catch (error) {
-      console.error('Error updating dark mode:', error);
-      setDarkMode(!value);
-    }
+    // Dark mode coming soon: UI shows coming soon, do not persist change
+    Alert.alert('Coming soon', 'Dark Mode will be available in a future update.');
   };
 
   const handleNotificationsToggle = async (value: boolean) => {
@@ -272,6 +311,58 @@ export function SettingsTab({ userData }: SettingsTabProps) {
     } catch (error) {
       console.error('Error updating notifications:', error);
       setNotificationsEnabled(!value);
+    }
+  };
+
+  const registerForPushNotificationsAsync = async () => {
+    if (!userData?.userId) {
+      Alert.alert('Error', 'User information not available');
+      return;
+    }
+
+    try {
+      if (!Device.isDevice) {
+        Alert.alert('Push Notifications', 'Push notifications require a physical device');
+        return;
+      }
+
+      try {
+        const { status: existingStatus } = await Notifications.getPermissionsAsync();
+        let finalStatus = existingStatus;
+        if (existingStatus !== 'granted') {
+          const { status } = await Notifications.requestPermissionsAsync();
+          finalStatus = status;
+        }
+
+        if (finalStatus !== 'granted') {
+          Alert.alert('Permission required', 'Enable push notifications permissions in your device settings');
+          return;
+        }
+
+        const tokenData = await Notifications.getExpoPushTokenAsync();
+        const pushToken = tokenData.data;
+
+        // Send token to backend
+        await fetch(`${API_BASE_URL}/users/${userData.userId}/push-token`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ push_token: pushToken }),
+        });
+
+        Alert.alert('Success', 'Device registered for push notifications');
+      } catch (notificationError: any) {
+        if (notificationError.message?.includes('expo-notifications') || notificationError.message?.includes('SDK 53')) {
+          Alert.alert(
+            'Development Build Required',
+            'Push notifications require a development build. Please use `eas build --platform ios --profile preview` or `eas build --platform android --profile preview` to create a development build.'
+          );
+        } else {
+          throw notificationError;
+        }
+      }
+    } catch (error) {
+      console.error('Error registering for push notifications:', error);
+      Alert.alert('Error', 'Failed to register for push notifications');
     }
   };
 
@@ -357,15 +448,25 @@ export function SettingsTab({ userData }: SettingsTabProps) {
               />
             </View>
 
+            <View style={[styles.settingItem, { justifyContent: 'space-between' }]}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.settingLabel}>Register Device</Text>
+                <Text style={styles.settingSubtitle}>Register this device for push notifications</Text>
+              </View>
+              <TouchableOpacity onPress={registerForPushNotificationsAsync}>
+                <Text style={[styles.primaryButtonText, { backgroundColor: 'transparent', color: '#007AFF' }]}>Register</Text>
+              </TouchableOpacity>
+            </View>
+
             <View style={styles.settingItem}>
               <Text style={styles.settingIcon}>🌙</Text>
               <View style={styles.settingContent}>
                 <Text style={styles.settingLabel}>Dark Mode</Text>
-                <Text style={styles.settingSubtitle}>{darkMode ? 'Enabled' : 'Disabled'}</Text>
+                <Text style={styles.settingSubtitle}>Coming soon</Text>
               </View>
               <Switch
                 value={darkMode}
-                onValueChange={handleDarkModeToggle}
+                disabled
                 trackColor={{ false: '#e0e0e0', true: '#007AFF' }}
                 thumbColor={darkMode ? '#fff' : '#f0f0f0'}
               />
@@ -806,3 +907,5 @@ const styles = StyleSheet.create({
     fontFamily: 'Trebuchet MS',
   },
 });
+
+export default SettingsTab;
